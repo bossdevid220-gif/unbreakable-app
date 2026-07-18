@@ -120,7 +120,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static Files
-// Serve static files (if any)
 app.use('/static', express.static(path.join(__dirname, '../public')));
 
 // ============ SESSION (HTTP-Only Cookies) ============
@@ -130,10 +129,10 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        httpOnly: true,        // ✅ JavaScript cannot access
-        secure: true,          // ✅ HTTPS only
-        sameSite: 'strict',    // ✅ CSRF Protection
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000,
         path: '/'
     },
     name: '__Secure-zx-session'
@@ -148,7 +147,7 @@ app.use(csrfProtection);
 
 // ============ RATE LIMITING ============
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     max: 100,
     message: 'Too many requests. Please try again later.',
     standardHeaders: true,
@@ -157,7 +156,7 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     max: 5,
     message: 'Too many login attempts. Please try again later.',
     standardHeaders: true,
@@ -193,6 +192,11 @@ function requireAdmin(req, res, next) {
 
 // ============ ROUTES ============
 
+// ---------- ROOT (/) REDIRECT TO LOGIN ----------
+app.get('/', (req, res) => {
+    res.redirect('/login');
+});
+
 // ---------- LOGIN PAGE ----------
 app.get('/login', (req, res) => {
     if (req.session && req.session.userId) {
@@ -216,11 +220,9 @@ app.post('/login', authLimiter, async (req, res) => {
     }
     
     try {
-        // Find user
         let user = await User.findOne({ deviceId });
         
         if (!user) {
-            // Check if access key exists in users list
             const keyExists = await User.findOne({ deviceId: password });
             if (!keyExists) {
                 return res.render('login', { 
@@ -229,7 +231,6 @@ app.post('/login', authLimiter, async (req, res) => {
                 });
             }
             
-            // Create new user with password as key
             const hashedPassword = await bcrypt.hash(password, 12);
             user = new User({
                 deviceId: deviceId,
@@ -240,7 +241,6 @@ app.post('/login', authLimiter, async (req, res) => {
             console.log(`✅ New user registered: ${deviceId}`);
         }
         
-        // Check if account is active
         if (!user.isActive) {
             return res.render('login', { 
                 csrfToken: req.csrfToken(), 
@@ -248,7 +248,6 @@ app.post('/login', authLimiter, async (req, res) => {
             });
         }
         
-        // Check lock
         if (user.lockUntil && user.lockUntil > Date.now()) {
             const remaining = Math.ceil((user.lockUntil - Date.now()) / 60000);
             return res.render('login', { 
@@ -257,7 +256,6 @@ app.post('/login', authLimiter, async (req, res) => {
             });
         }
         
-        // Verify password
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) {
             user.loginAttempts += 1;
@@ -276,20 +274,17 @@ app.post('/login', authLimiter, async (req, res) => {
             });
         }
         
-        // Reset attempts
         user.loginAttempts = 0;
         user.lockUntil = null;
         user.lastLogin = new Date();
         await user.save();
         
-        // Create session
         req.session.userId = user._id;
         req.session.role = user.role;
         req.session.deviceId = user.deviceId;
         
         console.log(`✅ User logged in: ${deviceId} (${user.role})`);
         
-        // Redirect based on role
         if (user.role === 'admin') {
             return res.redirect('/admin');
         }

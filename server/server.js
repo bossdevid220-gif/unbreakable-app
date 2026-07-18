@@ -14,11 +14,15 @@ const PORT = process.env.PORT || 10000;
 
 // ============ DATABASE CONNECTION ============
 console.log('🔐 Connecting to MongoDB...');
+
 mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
-.then(() => console.log('✅ MongoDB Connected Successfully!'))
+.then(() => {
+    console.log('✅ MongoDB Connected Successfully!');
+    createDefaultAdmin();
+})
 .catch(err => {
     console.log('❌ MongoDB Connection Error:', err.message);
     console.log('⚠️ Please check your MONGODB_URI in .env file');
@@ -69,11 +73,34 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', UserSchema);
 
+// ============ CREATE DEFAULT ADMIN USER ============
+async function createDefaultAdmin() {
+    try {
+        const adminExists = await User.findOne({ role: 'admin' });
+        if (!adminExists) {
+            const adminPassword = process.env.ADMIN_PASSWORD || 'UnbreakableAdmin@2026#Secure$';
+            const hashedPassword = await bcrypt.hash(adminPassword, 12);
+            const admin = new User({
+                deviceId: 'ADMIN-DEVICE-001',
+                passwordHash: hashedPassword,
+                role: 'admin',
+                isActive: true
+            });
+            await admin.save();
+            console.log('✅ Default admin user created!');
+            console.log('📛 Admin Device ID: ADMIN-DEVICE-001');
+            console.log('🔑 Admin Password: ' + adminPassword);
+        }
+    } catch (error) {
+        console.log('⚠️ Admin user creation error:', error.message);
+    }
+}
+
 // ============ SESSION STORE ============
 const sessionStore = MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60, // 1 day
+    ttl: 24 * 60 * 60,
     autoRemove: 'native'
 });
 
@@ -139,10 +166,7 @@ app.use(session({
 }));
 
 // ============ CSRF PROTECTION ============
-const csrfProtection = csrf({ 
-    cookie: false,
-    ignoreMethods: ['GET', 'HEAD', 'OPTIONS']
-});
+const csrfProtection = csrf({ cookie: true });
 app.use(csrfProtection);
 
 // ============ RATE LIMITING ============
@@ -203,7 +227,7 @@ app.get('/login', (req, res) => {
         return res.redirect('/dashboard');
     }
     res.render('login', { 
-        csrfToken: req.csrfToken ? req.csrfToken() : '', 
+        csrfToken: req.csrfToken(), 
         error: null 
     });
 });
@@ -223,6 +247,7 @@ app.post('/login', authLimiter, async (req, res) => {
         let user = await User.findOne({ deviceId });
         
         if (!user) {
+            // Check if access key exists
             const keyExists = await User.findOne({ deviceId: password });
             if (!keyExists) {
                 return res.render('login', { 
@@ -231,6 +256,7 @@ app.post('/login', authLimiter, async (req, res) => {
                 });
             }
             
+            // Create new user
             const hashedPassword = await bcrypt.hash(password, 12);
             user = new User({
                 deviceId: deviceId,
@@ -241,6 +267,7 @@ app.post('/login', authLimiter, async (req, res) => {
             console.log(`✅ New user registered: ${deviceId}`);
         }
         
+        // Check if account is active
         if (!user.isActive) {
             return res.render('login', { 
                 csrfToken: req.csrfToken(), 
@@ -248,6 +275,7 @@ app.post('/login', authLimiter, async (req, res) => {
             });
         }
         
+        // Check lock
         if (user.lockUntil && user.lockUntil > Date.now()) {
             const remaining = Math.ceil((user.lockUntil - Date.now()) / 60000);
             return res.render('login', { 
@@ -256,6 +284,7 @@ app.post('/login', authLimiter, async (req, res) => {
             });
         }
         
+        // Verify password
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) {
             user.loginAttempts += 1;
@@ -274,17 +303,20 @@ app.post('/login', authLimiter, async (req, res) => {
             });
         }
         
+        // Reset attempts
         user.loginAttempts = 0;
         user.lockUntil = null;
         user.lastLogin = new Date();
         await user.save();
         
+        // Create session
         req.session.userId = user._id;
         req.session.role = user.role;
         req.session.deviceId = user.deviceId;
         
         console.log(`✅ User logged in: ${deviceId} (${user.role})`);
         
+        // Redirect based on role
         if (user.role === 'admin') {
             return res.redirect('/admin');
         }
@@ -308,10 +340,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             return res.redirect('/login');
         }
         res.render('dashboard', { 
-            user: user,
             deviceId: user.deviceId,
             role: user.role,
-            csrfToken: req.csrfToken ? req.csrfToken() : ''
+            csrfToken: req.csrfToken()
         });
     } catch (error) {
         console.error('Dashboard error:', error);
@@ -325,13 +356,13 @@ app.get('/admin', requireAdmin, async (req, res) => {
         const users = await User.find({}).select('-passwordHash').sort({ createdAt: -1 });
         res.render('admin', { 
             users: users,
-            csrfToken: req.csrfToken ? req.csrfToken() : ''
+            csrfToken: req.csrfToken()
         });
     } catch (error) {
         console.error('Admin error:', error);
         res.render('admin', { 
             users: [], 
-            csrfToken: req.csrfToken ? req.csrfToken() : '' 
+            csrfToken: req.csrfToken()
         });
     }
 });
@@ -390,7 +421,10 @@ app.use((err, req, res, next) => {
     console.error('Server Error:', err);
     
     if (err.code === 'EBADCSRFTOKEN') {
-        return res.status(403).send('CSRF token invalid. Please refresh and try again.');
+        return res.render('login', { 
+            csrfToken: req.csrfToken ? req.csrfToken() : '', 
+            error: 'Session expired. Please refresh and try again.' 
+        });
     }
     
     res.status(500).send('Something went wrong. Please try again later.');

@@ -3,10 +3,10 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const csrf = require('csurf');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -131,13 +131,6 @@ app.use(helmet({
     },
     frameguard: { 
         action: 'deny' 
-    },
-    crossOriginEmbedderPolicy: true,
-    crossOriginOpenerPolicy: { 
-        policy: 'same-origin' 
-    },
-    crossOriginResourcePolicy: { 
-        policy: 'same-origin' 
     }
 }));
 
@@ -164,9 +157,42 @@ app.use(session({
     name: '__Secure-zx-session'
 }));
 
-// ============ CSRF PROTECTION (FIXED) ============
-const csrfProtection = csrf({ cookie: false });
-app.use(csrfProtection);
+// ============ CSRF PROTECTION (DOUBLE SUBMIT COOKIE METHOD) ============
+// CSRF Token Generate Middleware
+app.use((req, res, next) => {
+    // Generate CSRF token if not exists
+    if (!req.session.csrfToken) {
+        req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+    }
+    
+    // Make csrfToken available in views
+    res.locals.csrfToken = req.session.csrfToken;
+    
+    // Add csrfToken method to req for compatibility
+    req.csrfToken = () => req.session.csrfToken;
+    
+    next();
+});
+
+// CSRF Validation Middleware (only for POST, PUT, DELETE)
+app.use((req, res, next) => {
+    // Skip validation for GET, HEAD, OPTIONS
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        return next();
+    }
+    
+    const token = req.body._csrf || req.headers['x-csrf-token'];
+    const sessionToken = req.session.csrfToken;
+    
+    if (!token || !sessionToken || token !== sessionToken) {
+        return res.status(403).render('login', {
+            csrfToken: req.csrfToken(),
+            error: 'INVALID CSRF TOKEN. PLEASE REFRESH AND TRY AGAIN.'
+        });
+    }
+    
+    next();
+});
 
 // ============ RATE LIMITING ============
 const limiter = rateLimit({
@@ -410,14 +436,6 @@ app.get('/health', (req, res) => {
 // ============ ERROR HANDLING ============
 app.use((err, req, res, next) => {
     console.error('SERVER ERROR:', err);
-    
-    if (err.code === 'EBADCSRFTOKEN') {
-        return res.render('login', { 
-            csrfToken: req.csrfToken ? req.csrfToken() : '', 
-            error: 'SESSION EXPIRED. PLEASE REFRESH AND TRY AGAIN.' 
-        });
-    }
-    
     res.status(500).send('SOMETHING WENT WRONG. PLEASE TRY AGAIN LATER.');
 });
 

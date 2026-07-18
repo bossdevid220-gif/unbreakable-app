@@ -120,7 +120,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static Files
-app.use(express.static(path.join(__dirname, '../public')));
+// Serve static files (if any)
+app.use('/static', express.static(path.join(__dirname, '../public')));
 
 // ============ SESSION (HTTP-Only Cookies) ============
 app.use(session({

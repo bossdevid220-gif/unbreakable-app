@@ -13,19 +13,18 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 // ============ DATABASE CONNECTION ============
-console.log('🔐 Connecting to MongoDB...');
+console.log('🔐 CONNECTING TO MONGODB...');
 
 mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
 .then(() => {
-    console.log('✅ MongoDB Connected Successfully!');
+    console.log('✅ MONGODB CONNECTED SUCCESSFULLY!');
     createDefaultAdmin();
 })
 .catch(err => {
-    console.log('❌ MongoDB Connection Error:', err.message);
-    console.log('⚠️ Please check your MONGODB_URI in .env file');
+    console.log('❌ MONGODB CONNECTION ERROR:', err.message);
 });
 
 // ============ USER SCHEMA ============
@@ -87,12 +86,12 @@ async function createDefaultAdmin() {
                 isActive: true
             });
             await admin.save();
-            console.log('✅ Default admin user created!');
-            console.log('📛 Admin Device ID: ADMIN-DEVICE-001');
-            console.log('🔑 Admin Password: ' + adminPassword);
+            console.log('✅ DEFAULT ADMIN USER CREATED!');
+            console.log('📛 ADMIN DEVICE ID: ADMIN-DEVICE-001');
+            console.log('🔑 ADMIN PASSWORD: ' + adminPassword);
         }
     } catch (error) {
-        console.log('⚠️ Admin user creation error:', error.message);
+        console.log('⚠️ ADMIN USER CREATION ERROR:', error.message);
     }
 }
 
@@ -106,7 +105,7 @@ const sessionStore = MongoStore.create({
 
 // ============ MIDDLEWARE ============
 
-// Helmet - Security Headers
+// HELMET - SECURITY HEADERS
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -142,14 +141,14 @@ app.use(helmet({
     }
 }));
 
-// Body Parser
+// BODY PARSER
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static Files
+// STATIC FILES
 app.use('/static', express.static(path.join(__dirname, '../public')));
 
-// ============ SESSION (HTTP-Only Cookies) ============
+// ============ SESSION (HTTP-ONLY COOKIES) ============
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback_secret_change_this',
     store: sessionStore,
@@ -165,12 +164,10 @@ app.use(session({
     name: '__Secure-zx-session'
 }));
 
-// ============ CSRF PROTECTION ============
-const csrfProtection = csrf({ 
-    cookie: false,
-    ignoreMethods: ['GET', 'HEAD', 'OPTIONS']
-});
+// ============ CSRF PROTECTION (FIXED) ============
+const csrfProtection = csrf({ cookie: false });
 app.use(csrfProtection);
+
 // ============ RATE LIMITING ============
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -209,21 +206,21 @@ function requireAdmin(req, res, next) {
     User.findById(req.session.userId)
         .then(user => {
             if (!user || user.role !== 'admin') {
-                return res.status(403).send('⛔ Access Denied. Admin only.');
+                return res.status(403).send('⛔ ACCESS DENIED. ADMIN ONLY.');
             }
             next();
         })
-        .catch(() => res.status(500).send('Server Error'));
+        .catch(() => res.status(500).send('SERVER ERROR'));
 }
 
 // ============ ROUTES ============
 
-// ---------- ROOT (/) REDIRECT TO LOGIN ----------
+// ROOT (/) REDIRECT TO LOGIN
 app.get('/', (req, res) => {
     res.redirect('/login');
 });
 
-// ---------- LOGIN PAGE ----------
+// LOGIN PAGE
 app.get('/login', (req, res) => {
     if (req.session && req.session.userId) {
         return res.redirect('/dashboard');
@@ -234,14 +231,14 @@ app.get('/login', (req, res) => {
     });
 });
 
-// ---------- LOGIN POST ----------
+// LOGIN POST
 app.post('/login', authLimiter, async (req, res) => {
     const { deviceId, password } = req.body;
     
     if (!deviceId || !password) {
         return res.render('login', { 
             csrfToken: req.csrfToken(), 
-            error: 'All fields are required' 
+            error: 'ALL FIELDS ARE REQUIRED' 
         });
     }
     
@@ -249,16 +246,14 @@ app.post('/login', authLimiter, async (req, res) => {
         let user = await User.findOne({ deviceId });
         
         if (!user) {
-            // Check if access key exists
             const keyExists = await User.findOne({ deviceId: password });
             if (!keyExists) {
                 return res.render('login', { 
                     csrfToken: req.csrfToken(), 
-                    error: 'Invalid credentials. Please check your access key.' 
+                    error: 'INVALID CREDENTIALS. PLEASE CHECK YOUR ACCESS KEY.' 
                 });
             }
             
-            // Create new user
             const hashedPassword = await bcrypt.hash(password, 12);
             user = new User({
                 deviceId: deviceId,
@@ -266,27 +261,24 @@ app.post('/login', authLimiter, async (req, res) => {
                 role: 'user'
             });
             await user.save();
-            console.log(`✅ New user registered: ${deviceId}`);
+            console.log(`✅ NEW USER REGISTERED: ${deviceId}`);
         }
         
-        // Check if account is active
         if (!user.isActive) {
             return res.render('login', { 
                 csrfToken: req.csrfToken(), 
-                error: 'Account is disabled. Contact admin.' 
+                error: 'ACCOUNT IS DISABLED. CONTACT ADMIN.' 
             });
         }
         
-        // Check lock
         if (user.lockUntil && user.lockUntil > Date.now()) {
             const remaining = Math.ceil((user.lockUntil - Date.now()) / 60000);
             return res.render('login', { 
                 csrfToken: req.csrfToken(), 
-                error: `Account locked. Try again in ${remaining} minutes.` 
+                error: `ACCOUNT LOCKED. TRY AGAIN IN ${remaining} MINUTES.` 
             });
         }
         
-        // Verify password
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) {
             user.loginAttempts += 1;
@@ -295,45 +287,42 @@ app.post('/login', authLimiter, async (req, res) => {
                 await user.save();
                 return res.render('login', { 
                     csrfToken: req.csrfToken(), 
-                    error: 'Too many attempts. Account locked for 15 minutes.' 
+                    error: 'TOO MANY ATTEMPTS. ACCOUNT LOCKED FOR 15 MINUTES.' 
                 });
             }
             await user.save();
             return res.render('login', { 
                 csrfToken: req.csrfToken(), 
-                error: 'Invalid credentials. Please try again.' 
+                error: 'INVALID CREDENTIALS. PLEASE TRY AGAIN.' 
             });
         }
         
-        // Reset attempts
         user.loginAttempts = 0;
         user.lockUntil = null;
         user.lastLogin = new Date();
         await user.save();
         
-        // Create session
         req.session.userId = user._id;
         req.session.role = user.role;
         req.session.deviceId = user.deviceId;
         
-        console.log(`✅ User logged in: ${deviceId} (${user.role})`);
+        console.log(`✅ USER LOGGED IN: ${deviceId} (${user.role})`);
         
-        // Redirect based on role
         if (user.role === 'admin') {
             return res.redirect('/admin');
         }
         res.redirect('/dashboard');
         
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('LOGIN ERROR:', error);
         res.render('login', { 
             csrfToken: req.csrfToken(), 
-            error: 'Server error. Please try again.' 
+            error: 'SERVER ERROR. PLEASE TRY AGAIN.' 
         });
     }
 });
 
-// ---------- DASHBOARD ----------
+// DASHBOARD
 app.get('/dashboard', requireAuth, async (req, res) => {
     try {
         const user = await User.findById(req.session.userId);
@@ -347,12 +336,12 @@ app.get('/dashboard', requireAuth, async (req, res) => {
             csrfToken: req.csrfToken()
         });
     } catch (error) {
-        console.error('Dashboard error:', error);
+        console.error('DASHBOARD ERROR:', error);
         res.redirect('/login');
     }
 });
 
-// ---------- ADMIN ----------
+// ADMIN PANEL
 app.get('/admin', requireAdmin, async (req, res) => {
     try {
         const users = await User.find({}).select('-passwordHash').sort({ createdAt: -1 });
@@ -361,7 +350,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
             csrfToken: req.csrfToken()
         });
     } catch (error) {
-        console.error('Admin error:', error);
+        console.error('ADMIN ERROR:', error);
         res.render('admin', { 
             users: [], 
             csrfToken: req.csrfToken()
@@ -369,47 +358,47 @@ app.get('/admin', requireAdmin, async (req, res) => {
     }
 });
 
-// ---------- ADMIN: TOGGLE USER ----------
+// ADMIN: TOGGLE USER
 app.post('/admin/user/:id/toggle', requireAdmin, async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
         if (user) {
             user.isActive = !user.isActive;
             await user.save();
-            console.log(`✅ User ${user.deviceId} ${user.isActive ? 'enabled' : 'disabled'}`);
+            console.log(`✅ USER ${user.deviceId} ${user.isActive ? 'ENABLED' : 'DISABLED'}`);
         }
         res.redirect('/admin');
     } catch (error) {
-        console.error('Toggle error:', error);
+        console.error('TOGGLE ERROR:', error);
         res.redirect('/admin');
     }
 });
 
-// ---------- ADMIN: DELETE USER ----------
+// ADMIN: DELETE USER
 app.post('/admin/user/:id/delete', requireAdmin, async (req, res) => {
     try {
         const user = await User.findByIdAndDelete(req.params.id);
         if (user) {
-            console.log(`✅ User deleted: ${user.deviceId}`);
+            console.log(`✅ USER DELETED: ${user.deviceId}`);
         }
         res.redirect('/admin');
     } catch (error) {
-        console.error('Delete error:', error);
+        console.error('DELETE ERROR:', error);
         res.redirect('/admin');
     }
 });
 
-// ---------- LOGOUT ----------
+// LOGOUT
 app.get('/logout', (req, res) => {
     req.session.destroy((err) => {
         if (err) {
-            console.error('Logout error:', err);
+            console.error('LOGOUT ERROR:', err);
         }
         res.redirect('/login');
     });
 });
 
-// ---------- HEALTH CHECK ----------
+// HEALTH CHECK
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'OK', 
@@ -420,39 +409,39 @@ app.get('/health', (req, res) => {
 
 // ============ ERROR HANDLING ============
 app.use((err, req, res, next) => {
-    console.error('Server Error:', err);
+    console.error('SERVER ERROR:', err);
     
     if (err.code === 'EBADCSRFTOKEN') {
         return res.render('login', { 
             csrfToken: req.csrfToken ? req.csrfToken() : '', 
-            error: 'Session expired. Please refresh and try again.' 
+            error: 'SESSION EXPIRED. PLEASE REFRESH AND TRY AGAIN.' 
         });
     }
     
-    res.status(500).send('Something went wrong. Please try again later.');
+    res.status(500).send('SOMETHING WENT WRONG. PLEASE TRY AGAIN LATER.');
 });
 
 // ============ 404 HANDLER ============
 app.use((req, res) => {
-    res.status(404).send('Page not found');
+    res.status(404).send('PAGE NOT FOUND');
 });
 
 // ============ START SERVER ============
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🛡️ Unbreakable Server running on port ${PORT}`);
+    console.log(`🛡️ UNBREAKABLE SERVER RUNNING ON PORT ${PORT}`);
     console.log(`🔐 https://unbreakable-app.onrender.com`);
-    console.log(`📱 Health: https://unbreakable-app.onrender.com/health`);
+    console.log(`📱 HEALTH: https://unbreakable-app.onrender.com/health`);
 });
 
 // ============ GRACEFUL SHUTDOWN ============
 process.on('SIGTERM', async () => {
-    console.log('SIGTERM received. Shutting down gracefully...');
+    console.log('SIGTERM RECEIVED. SHUTTING DOWN GRACEFULLY...');
     await mongoose.disconnect();
     process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-    console.log('SIGINT received. Shutting down gracefully...');
+    console.log('SIGINT RECEIVED. SHUTTING DOWN GRACEFULLY...');
     await mongoose.disconnect();
     process.exit(0);
 });

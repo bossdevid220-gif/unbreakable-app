@@ -1,0 +1,4 @@
+PORT=10000
+SESSION_SECRET=ZENOX_ULTRA_SECURE_RANDOM_KEY_2026
+MONGODB_URI=mongodb+srv://bossdevid220_db_user:WPPDjxhZxXT3eLpi@cluster0.igsqyac.mongodb.net/zenoxDB?retryWrites=true&w=majority&appName=Cluster0
+ADMIN_PASSWORD=ZENOX@2026#SECURE$

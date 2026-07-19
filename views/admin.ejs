@@ -7,19 +7,29 @@
     <style>
         * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
         body { background: #040209; color: #fff; padding: 30px; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; }
         .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 2px solid #FF0055; margin-bottom: 30px; }
         .header h1 { color: #FF0055; font-size: 24px; font-weight: 900; letter-spacing: 1px; }
         .nav-links a { background: rgba(0, 110, 255, 0.1); border: 1px solid #006EFF; color: #006EFF; padding: 8px 15px; border-radius: 8px; font-size: 12px; font-weight: 900; text-decoration: none; margin-left: 10px; }
         .nav-links .logout { border-color: #FF0055; color: #FF0055; background: rgba(255, 0, 85, 0.1); }
-        .card { background: #0c0919; border-radius: 16px; padding: 25px; border: 1px solid rgba(255, 0, 85, 0.2); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .card { background: #0c0919; border-radius: 16px; padding: 25px; border: 1px solid rgba(0, 110, 255, 0.2); }
         h2 { color: #006EFF; font-size: 18px; font-weight: 900; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid rgba(0, 110, 255, 0.1); }
-        th { background: #006EFF; color: white; font-size: 12px; font-weight: 900; letter-spacing: 1px; }
-        td { font-size: 14px; font-weight: bold; color: #adacb5; }
-        .badge { background: #FF0055; color: white; padding: 3px 8px; font-size: 11px; border-radius: 5px; font-family: monospace; }
-        .status-active { background: #00FF66; color: #000; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; color: #adacb5; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(0,110,255,0.3); border-radius: 8px; color: #fff; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #FF0055; }
+        .btn { width: 100%; padding: 12px; background: #FF0055; border: none; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 900; cursor: pointer; }
+        .btn-revoke { background: transparent; border: 1px solid #FF0055; color: #FF0055; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .alert-success { background: rgba(0, 255, 102, 0.1); border: 1px solid #00FF66; padding: 15px; border-radius: 8px; color: #00FF66; margin-bottom: 20px; font-weight: bold; }
+        .key-display { background: #006EFF; color: #fff; padding: 10px; font-family: monospace; font-size: 16px; border-radius: 5px; text-align: center; margin-top: 10px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { background: #006EFF; color: white; font-size: 12px; font-weight: 900; }
+        td { font-size: 13px; color: #adacb5; }
+        .badge { background: rgba(255, 0, 85, 0.1); color: #FF0055; padding: 3px 8px; font-size: 11px; border-radius: 5px; font-family: monospace; font-weight: bold; }
+        .status-active { color: #00FF66; font-weight: bold; }
+        .status-expired { color: #FF0055; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -28,34 +38,89 @@
         <h1>ZENOX MAIN TERMINAL</h1>
         <div class="nav-links">
             <a href="/ZENOX-PORTAL-CORE-X92">📊 DASHBOARD</a>
-            <a href="/ZENOX-TERMINATE" class="logout">🚪 LOGOUT</a>
+            <a href="/ZENOX-TERMINATE" class=\"logout\">🚪 LOGOUT</a>
         </div>
     </div>
+
+    <% if (success) { %>
+        <div class="alert-success">
+            <%= success %>
+            <% if (generatedKey) { %>
+                <div class="key-display"><%= generatedKey %></div>
+            <% } %>
+        </div>
+    <% } %>
     
-    <div class="card">
-        <h2>🛡️ SYSTEM USERS MANAGEMENT (TOTAL: <%= users.length %>)</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>DEVICE ID</th>
-                    <th>ROLE</th>
-                    <th>CREATED AT</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% users.forEach(user => { %>
+    <div class="grid">
+        <div class="card">
+            <h2>🔑 GENERATE ACCESS</h2>
+            <form action="/ZENOX-GENERATE-ACCESS" method="POST">
+                <div class="form-group">
+                    <label>TARGET DEVICE ID</label>
+                    <input type="text" name="targetDeviceId" placeholder="ZENOX-DEV-XXXXXX" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>DURATION TYPE</label>
+                    <select name="durationType">
+                        <option value="MINUTES">MINUTES</option>
+                        <option value="HOURS">HOURS</option>
+                        <option value="DAYS">DAYS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>DURATION VALUE</label>
+                    <input type="number" name="durationValue" placeholder="E.G. 30" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>SYSTEM ROLE</label>
+                    <select name="targetRole">
+                        <option value="user">USER</option>
+                        <option value="admin">ADMIN</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">GENERATE & AUTHORIZE</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>🛡️ MANAGED DEVICES (TOTAL: <%= users.length %>)</h2>
+            <table>
+                <thead>
                     <tr>
-                        <td><span class="badge"><%= user.deviceId %></span></td>
-                        <td><%= user.role.toUpperCase() %></td>
-                        <td><%= new Date(user.createdAt).toLocaleDateString() %></td>
+                        <th>DEVICE ID</th>
+                        <th>ROLE</th>
+                        <th>STATUS</th>
+                        <th>EXPIRATION</th>
+                        <th>ACTION</th>
                     </tr>
-                <% }) %>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <% users.forEach(user => { %>
+                        <tr>
+                            <td><span class="badge"><%= user.deviceId %></span></td>
+                            <td><%= user.role.toUpperCase() %></td>
+                            <td>
+                                <% if (user.isActive && new Date() <= user.expiresAt) { %>
+                                    <span class="status-active">ACTIVE</span>
+                                <% } else { %>
+                                    <span class="status-expired">EXPIRED/REVOKED</span>
+                                <% } %>
+                            </td>
+                            <td><%= new Date(user.expiresAt).toLocaleString() %></td>
+                            <td>
+                                <% if (user.isActive) { %>
+                                    <form action="/ZENOX-REVOKE-ACCESS" method="POST" style="display:inline;">
+                                        <input type="hidden" name="targetDeviceId" value="<%= user.deviceId %>">
+                                        <button type="submit" class="btn-revoke">REVOKE</button>
+                                    </form>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
-<script>
-    document.addEventListener('contextmenu', e => e.preventDefault());
-</script>
 </body>
 </html>

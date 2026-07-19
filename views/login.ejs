@@ -55,19 +55,19 @@
         }
     };
 
-    (function() {
-    let id = localStorage.getItem('zenox_id');
-    if (!id) {
-        const chars = '0123456789ABCDEF';
-        let hex = '';
-        for (let i = 0; i < 6; i++) hex += chars[Math.floor(Math.random() * 16)];
-        id = 'ZENOX-V5-' + hex;
-        localStorage.setItem('zenox_id', id);
-    }
-    document.getElementById('devDisplay').textContent = id;
-    document.getElementById('devInput').value = id;
-})();
-
+    // FORCE GENERATE DEVICE ID ON LOAD
+    window.onload = function() {
+        let id = localStorage.getItem('zenox_id');
+        if (!id) {
+            const chars = '0123456789ABCDEF';
+            let hex = '';
+            for (let i = 0; i < 6; i++) hex += chars[Math.floor(Math.random() * 16)];
+            id = 'ZENOX-V5-' + hex;
+            localStorage.setItem('zenox_id', id);
+        }
+        document.getElementById('devDisplay').textContent = id;
+        document.getElementById('devInput').value = id;
+    };
 </script>
 </body>
 </html>

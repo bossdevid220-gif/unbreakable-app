@@ -26,7 +26,7 @@
     <h1>ZENOX - SECURE</h1>
     <span class="v5-badge">VERSION V5</span>
     
-    <div class="device-box" id="devDisplay">LOADING DEVICE ID...</div>
+    <div class="device-box">ZENOX-ADMIN-001</div>
     
     <% if (error) { %>
         <div class="error"><%= error %></div>
@@ -34,11 +34,11 @@
     
     <form action="/ZENOX-GATEWAY-LOGIN" method="POST">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <input type="hidden" name="deviceId" id="devInput">
+        <input type="hidden" name="deviceId" value="ZENOX-ADMIN-001">
         
         <div class="input-group">
             <label>🔑 ENTER ACCESS LICENSE KEY</label>
-            <input type="password" name="password" placeholder="AM-XXXX-XXXX-XXXX" required autocomplete="off">
+            <input type="password" name="password" placeholder="ENTER PASSWORD" required autocomplete="off">
         </div>
         
         <button type="submit" class="btn">ACTIVATE ACCESS PORTAL</button>
@@ -47,26 +47,11 @@
 </div>
 
 <script>
-    // DISABLE RIGHT CLICK & INSPECT ELEMENT KEYS
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.onkeydown = function(e) {
         if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
             return false;
         }
-    };
-
-    // FORCE GENERATE DEVICE ID ON LOAD
-    window.onload = function() {
-        let id = localStorage.getItem('zenox_id');
-        if (!id) {
-            const chars = '0123456789ABCDEF';
-            let hex = '';
-            for (let i = 0; i < 6; i++) hex += chars[Math.floor(Math.random() * 16)];
-            id = 'ZENOX-V5-' + hex;
-            localStorage.setItem('zenox_id', id);
-        }
-        document.getElementById('devDisplay').textContent = id;
-        document.getElementById('devInput').value = id;
     };
 </script>
 </body>

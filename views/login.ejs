@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="EN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZENOX - SECURE LOGIN</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+        body { background: #040209; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .card { background: #0c0919; border-radius: 20px; padding: 40px; border: 2px solid #FF0055; width: 100%; max-width: 420px; box-shadow: 0 0 30px rgba(0, 110, 255, 0.3); text-align: center; }
+        h1 { color: #FF0055; font-size: 28px; font-weight: 900; letter-spacing: 2px; margin-bottom: 5px; }
+        .v5-badge { display: inline-block; background: #006EFF; color: white; padding: 3px 10px; font-size: 11px; font-weight: 900; border-radius: 5px; margin-bottom: 20px; }
+        .device-box { background: rgba(0, 110, 255, 0.1); border: 1px dashed #006EFF; border-radius: 10px; padding: 12px; margin-bottom: 20px; color: #006EFF; font-family: monospace; font-size: 14px; font-weight: bold; }
+        .input-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; font-size: 11px; font-weight: 900; color: #adacb5; margin-bottom: 8px; letter-spacing: 1px; }
+        input { width: 100%; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(0,110,255,0.3); border-radius: 10px; color: #fff; font-size: 14px; letter-spacing: 1px; }
+        input:focus { outline: none; border-color: #FF0055; }
+        .btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #FF0055, #006EFF); border: none; border-radius: 12px; color: #fff; font-size: 14px; font-weight: 900; cursor: pointer; letter-spacing: 1px; transition: 0.3s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,110,255,0.4); }
+        .error { background: rgba(255, 0, 85, 0.1); border: 1px solid #FF0055; border-radius: 10px; padding: 12px; color: #FF0055; font-size: 12px; font-weight: bold; margin-bottom: 20px; }
+        .footer { margin-top: 25px; font-size: 11px; color: #474554; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>ZENOX - SECURE</h1>
+    <span class="v5-badge">VERSION V5</span>
+    
+    <div class="device-box" id="devDisplay">LOADING DEVICE ID...</div>
+    
+    <% if (error) { %>
+        <div class="error"><%= error %></div>
+    <% } %>
+    
+    <form action="/ZENOX-GATEWAY-LOGIN" method="POST">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="deviceId" id="devInput">
+        
+        <div class="input-group">
+            <label>🔑 ENTER ACCESS LICENSE KEY</label>
+            <input type="password" name="password" placeholder="AM-XXXX-XXXX-XXXX" required autocomplete="off">
+        </div>
+        
+        <button type="submit" class="btn">ACTIVATE ACCESS PORTAL</button>
+    </form>
+    <div class="footer">SECURED BY ZENOX LABS</div>
+</div>
+
+<script>
+    // DISABLE RIGHT CLICK & INSPECT ELEMENT KEYS
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.onkeydown = function(e) {
+        if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
+            return false;
+        }
+    };
+
+    (function() {
+        let id = sessionStorage.getItem('zenox_id');
+        if (!id) {
+            const chars = '0123456789ABCDEF';
+            let hex = '';
+            for (let i = 0; i < 6; i++) hex += chars[Math.floor(Math.random() * 16)];
+            id = 'ZENOX-V5-' + hex;
+            sessionStorage.setItem('zenox_id', id);
+        }
+        document.getElementById('devDisplay').textContent = id;
+        document.getElementById('devInput').value = id;
+    })();
+</script>
+</body>
+</html>
